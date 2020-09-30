@@ -137,7 +137,7 @@ gstm_activate (GApplication *application)
 	 * Disabling warnings for this section in the meantime.	*/
 	#pragma GCC diagnostic push
 	#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-	if ((a_cnt == 0) || !gtk_status_icon_is_embedded (ci))
+	if ((a_cnt == 0) || !(IS_APP_INDICATOR(ic) && APP_INDICATOR_STATUS_ACTIVE == app_indicator_get_status(ic)))
 		gtk_widget_show_all (GTK_WIDGET (maindialog));
 	#pragma GCC diagnostic pop
 

@@ -29,7 +29,25 @@
 #include "main.h"
 #include "support.h"
 
-GtkStatusIcon *ci = NULL;
+AppIndicator* ic = NULL;
+
+
+static void gstm_docklet_indicator_refresh_impl()
+{
+	static GtkMenu *menu = NULL;
+	if (ic) {
+		if (menu) {
+			gtk_widget_destroy(GTK_WIDGET(menu));
+		}
+		menu = gstm_docklet_menu_regen();
+		app_indicator_set_menu(ic, menu);
+	}
+}
+
+void gstm_docklet_indicator_refresh()
+{
+	gstm_docklet_indicator_refresh_impl();
+}
 
 void gstm_docklet_create ()
 {
@@ -38,24 +56,12 @@ void gstm_docklet_create ()
 	 * Disabling warnings for this section in the meantime.	*/
 	#pragma GCC diagnostic push
 	#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-	//	Create systray icon
-
-	GdkPixbuf *pb = create_pixbuf ("gSTM.png");
-	ci = gtk_status_icon_new_from_pixbuf (pb);
-
-	gtk_status_icon_set_title (ci, "gSTM");
-	gtk_status_icon_set_name (ci, "gSTM");
-
-	//	Connect handlers
-    g_signal_connect ((gpointer) ci, "activate", G_CALLBACK (gstm_docklet_activated_cb), NULL);
-    g_signal_connect ((gpointer) ci, "popup-menu", G_CALLBACK (gstm_docklet_popupmenu_cb), NULL);
-
 	//	AppIndicator alternative
-	//ci = app_indicator_new ("gSTM", DEFAULT_ICON, APP_INDICATOR_CATEGORY_APPLICATION_STATUS);
-	//g_assert (IS_APP_INDICATOR (ci));
-	//g_assert (G_IS_OBJECT (ci));
-	//app_indicator_set_status (ci, APP_INDICATOR_STATUS_ACTIVE);
-
+	ic = app_indicator_new ("gSTM", "gSTM", APP_INDICATOR_CATEGORY_APPLICATION_STATUS);
+	g_assert (IS_APP_INDICATOR (ic));
+	g_assert (G_IS_OBJECT (ic));
+	gstm_docklet_indicator_refresh();
+	app_indicator_set_status (ic, APP_INDICATOR_STATUS_ACTIVE);
 	#pragma GCC diagnostic pop
 }
 
@@ -65,17 +71,13 @@ void gstm_toggle_mainwindow ()
 		gtk_widget_hide (maindialog);
 	else
 		gtk_widget_show (maindialog);
+
+	gstm_docklet_indicator_refresh();
 }
 
 void gstm_docklet_activated_cb (GtkWidget *widget, gpointer user_data)
 {
 	gstm_toggle_mainwindow();
-}
-
-void gstm_docklet_popupmenu_cb (GtkWidget *widget, gpointer user_data)
-{
-	GtkMenu *newmenu = gstm_docklet_menu_regen ();
-	gtk_menu_popup_at_pointer (newmenu, NULL);
 }
 
 void gstm_dockletmenu_tunnelitem_new (GtkMenu *menu, const gchar *t_name,
@@ -88,17 +90,26 @@ void gstm_dockletmenu_tunnelitem_new (GtkMenu *menu, const gchar *t_name,
 	GtkWidget *item_tunnel;
 	GtkWidget *img_yesno;
 	GdkPixbuf *pb;
+	gchar *label;
 
 	if (t_active)
 		pb = create_pixbuf("green.xpm");
 	else
 		pb = create_pixbuf("red.xpm");
-	
+
 	img_yesno = gtk_image_new_from_pixbuf(pb);
+	g_object_unref(pb);
 
 	gtk_widget_show (img_yesno);
 
-	item_tunnel = gtk_image_menu_item_new_with_mnemonic (t_name);
+	if (t_active)
+		label = g_strconcat("Disconnect from ", t_name, NULL);
+	else
+		label = g_strconcat("Connect to ", t_name, NULL);
+
+	item_tunnel = gtk_image_menu_item_new_with_mnemonic (label);
+
+	g_free(label);
 	gtk_widget_show (item_tunnel);
 	gtk_container_add (GTK_CONTAINER (menu), item_tunnel);
 	gtk_image_menu_item_set_image (GTK_IMAGE_MENU_ITEM (item_tunnel), img_yesno);
@@ -178,22 +189,4 @@ GtkMenu* gstm_docklet_menu_regen ()
 	#pragma GCC diagnostic pop
 
 	return menu;
-
-	///app_indicator_set_menu (ci, GTK_MENU (menu));
-
-	/*
-	//	Work-around for gtk_image_menu* being depreceated in gtk3
-	//	Saving here for gtk4 use one day
-	GtkWidget *box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 6);
-	GtkWidget *icon = gtk_image_new_from_icon_name ("folder-music-symbolic", GTK_ICON_SIZE_MENU);
-	GtkWidget *label = gtk_label_new ("Music");
-	GtkWidget *menu_item = gtk_menu_item_new ();
-
-	gtk_container_add (GTK_CONTAINER (box), icon);
-	gtk_container_add (GTK_CONTAINER (box), label);
-	gtk_container_add (GTK_CONTAINER (menu_item), box);
-
-	gtk_widget_show_all (menu_item);
-	gtk_container_add (GTK_CONTAINER (menu), menu_item);
-	*/
 }
